@@ -115,7 +115,7 @@ Responsável por:
 3. Implementação da classe `Feirante`.
 4. Criação do arquivo `requirements.txt`.
 
-### Módulo 2 — Nicolas
+### Módulo 2 — Nickolas
 
 Responsável por:
 

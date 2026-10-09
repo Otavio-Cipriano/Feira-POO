@@ -37,7 +37,7 @@ Você é o  responsável por executar a parte 1 do projeto "Feira de Bairro".
 
 ---
 
-## Módulo 2 — Nicolas (OO Advanced, Hierarquia & Polimorfismo)
+## Módulo 2 — Nickolas (OO Advanced, Hierarquia & Polimorfismo)
 
 Você é o responsável por executar a parte 2 do projeto "Feira de Bairro".
 

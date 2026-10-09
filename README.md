@@ -136,7 +136,7 @@ classDiagram
 | Participante | Responsabilidade |
 |---|---|
 | Otávio | Dados mocks e classe `Feirante` |
-| Nicolas | Hierarquia de barracas e classe `Reserva` |
+| Nickolas | Hierarquia de barracas e classe `Reserva` |
 | Pedro | Controllers e regras de negócio |
 | Vinicius | Rotas, execução da API e documentação |
 

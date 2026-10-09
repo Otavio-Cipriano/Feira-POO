@@ -1,43 +1,40 @@
-from app.database import feirantes, reservas
+from app.models.feirante import carregar_feirantes
 
+# Estado em memória do módulo
+feirantes = carregar_feirantes()
 
 def _para_dicionario(feirante):
-    #Converte um objeto Feirante em dicionário.#
     return {
-        "id": feirante.id,
-        "nome": feirante.nome,
+        "id": feirante.mostrar_id(),
+        "nome": feirante.mostrar_nome(),
     }
-
 
 def _reserva_para_dicionario(reserva):
     return {
-        "id": reserva.id,
-        "barraca_id": reserva.barraca.id,
-        "feirante_id": reserva.feirante.id,
-        "data": str(reserva.data),
-        "ativa": reserva.ativa,
+        "id": reserva.mostrar_id(),
+        "barraca_id": reserva.mostrar_barraca().mostrar_id(),
+        "feirante_id": reserva.mostrar_feirante().mostrar_id(),
+        "data": reserva.mostrar_data(),
     }
 
-
 def listar_feirantes():
-    #Retorna a lista de todos os feirantes.#
     return [_para_dicionario(f) for f in feirantes]
 
-
 def buscar_feirante_por_id(feirante_id):
-    #Retorna o feirante como dicionário, ou None se não existir.#
     for feirante in feirantes:
-        if feirante.id == feirante_id:
+        if feirante.mostrar_id() == feirante_id:
             return _para_dicionario(feirante)
     return None
 
-
 def historico_reservas(feirante_id):
-    #Retorna as reservas do feirante, ou None se o feirante não existir.#
     if buscar_feirante_por_id(feirante_id) is None:
         return None
+        
+    # Importação local para evitar erro de circularidade
+    from app.controllers.reserva_controller import reservas
+    
     return [
         _reserva_para_dicionario(r)
         for r in reservas
-        if r.feirante.id == feirante_id
+        if r.mostrar_feirante().mostrar_id() == feirante_id
     ]

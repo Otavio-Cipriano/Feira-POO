@@ -1,2 +1,12 @@
 docs/
 prompts/
+
+# Ignorar cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignorar ambiente virtual
+.venv/
+venv/
+env/

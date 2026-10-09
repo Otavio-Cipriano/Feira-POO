@@ -1,30 +1,34 @@
-from app.database import barracas
- 
- 
+from app.models.barraca import carregar_barracas
+
+# Estado em memória do módulo
+barracas = carregar_barracas()
+
 def _para_dicionario(barraca):
-    #Converte um objeto Barraca em dicionário.#
+    from app.controllers.reserva_controller import reservas
+    ocupada = any(r.mostrar_barraca().mostrar_id() == barraca.mostrar_id() for r in reservas)
+    
     return {
-        "id": barraca.id,
-        "nome": barraca.nome,
-        "taxa_diaria": barraca.taxa_diaria,
-        "disponivel": barraca.disponivel,
+        "id": barraca.mostrar_id(),
+        "codigo": barraca.mostrar_codigo(),
+        "taxa_diaria": barraca.calcular_taxa_diaria(),
+        "disponivel": not ocupada,
     }
- 
- 
+
 def listar_barracas():
-    #Retorna a lista de todas as barracas.#
     return [_para_dicionario(b) for b in barracas]
- 
- 
+
 def buscar_barraca_por_id(barraca_id):
-    #Retorna a barraca como dicionário, ou None se não existir.#
     for barraca in barracas:
-        if barraca.id == barraca_id:
+        if barraca.mostrar_id() == barraca_id:
             return _para_dicionario(barraca)
     return None
- 
- 
+
 def listar_barracas_disponiveis():
-    #Retorna somente as barracas disponíveis (list comprehension).#
-    return [_para_dicionario(b) for b in barracas if b.disponivel]
- 
+    from app.controllers.reserva_controller import reservas
+    
+    # Exigência do PDF: filtro com compreensão de lista
+    return [
+        _para_dicionario(b) 
+        for b in barracas 
+        if not any(r.mostrar_barraca().mostrar_id() == b.mostrar_id() for r in reservas)
+    ]
