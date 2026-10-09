@@ -10,3 +10,6 @@ __pycache__/
 .venv/
 venv/
 env/
+
+walkthrough.md
+GUIA_ARGUICAO.md

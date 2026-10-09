@@ -25,22 +25,31 @@ class Feirante:
 
     # --- Alteração e Validação ---
     def alterar_nome(self, novo_nome):
-        if not isinstance(novo_nome, str) or not novo_nome.strip():
+        try:
+            nome = novo_nome.strip()
+        except AttributeError as erro:
+            raise ValueError("Nome do feirante deve ser um texto.") from erro
+        if not nome:
             raise ValueError("Nome do feirante não pode ser vazio.")
-        self._nome = novo_nome.strip()
+        self._nome = nome
 
     def alterar_documento(self, novo_documento):
-        if not isinstance(novo_documento, str):
-            raise ValueError("Documento deve ser uma string.")
-        doc_limpo = novo_documento.strip()
+        try:
+            doc_limpo = novo_documento.strip()
+        except AttributeError as erro:
+            raise ValueError("Documento deve ser um texto.") from erro
         if not doc_limpo.isdigit() or len(doc_limpo) not in (11, 14):
             raise ValueError("Documento deve ter exatamente 11 (CPF) ou 14 (CNPJ) dígitos numéricos.")
         self._documento = doc_limpo
 
     def alterar_telefone(self, novo_telefone):
-        if not isinstance(novo_telefone, str) or not novo_telefone.strip():
+        try:
+            telefone = novo_telefone.strip()
+        except AttributeError as erro:
+            raise ValueError("Telefone do feirante deve ser um texto.") from erro
+        if not telefone:
             raise ValueError("Telefone do feirante não pode ser vazio.")
-        self._telefone = novo_telefone.strip()
+        self._telefone = telefone
 
     def __repr__(self):
         return f"Feirante({self._nome})"

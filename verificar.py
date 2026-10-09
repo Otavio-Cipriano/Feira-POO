@@ -1,91 +1,189 @@
-import os
-import sys
+import ast
+from pathlib import Path
 
-def run_checks():
-    print("Iniciando verificação do projeto Feira-POO...")
-    checks_passed = 0
+from app.controllers import reserva_controller
+from app.data.barraca_mock import BARRACAS
+from app.data.feirante_mock import FEIRANTES
+from app.data.reserva_mock import RESERVAS
+from app.models.barraca import (
+    Barraca,
+    BarracaAlimentacao,
+    BarracaGourmet,
+    carregar_barracas,
+)
+from app.models.feirante import Feirante, carregar_feirantes
+from app.models.reserva import Reserva, carregar_reservas
+from main import app
 
+
+ROOT = Path(__file__).resolve().parent
+checks = 0
+
+
+def verificar(condicao, mensagem):
+    global checks
+    checks += 1
+    if not condicao:
+        raise AssertionError(mensagem)
+
+
+def esperar_value_error(acao):
     try:
-        # 1. Verifica se app/models existe
-        assert os.path.exists('app/models'), "Diretório app/models não encontrado."
-        checks_passed += 1
+        acao()
+    except ValueError:
+        return True
+    return False
 
-        # 2. Verifica se app/controllers existe
-        assert os.path.exists('app/controllers'), "Diretório app/controllers não encontrado."
-        checks_passed += 1
 
-        # 3. Importa os models principais para confirmar sua existência
-        from app.models.barraca import Barraca, BarracaAlimentacao, BarracaGourmet
-        from app.models.feirante import Feirante
-        from app.models.reserva import Reserva
-        checks_passed += 1
+def nomes_de_classes_e_imports(caminho):
+    arvore = ast.parse(caminho.read_text(encoding="utf-8"))
+    return [
+        no
+        for no in ast.walk(arvore)
+        if isinstance(no, (ast.ClassDef, ast.Import, ast.ImportFrom))
+    ]
 
-        # 4. Valida constante Feirante.LIMITE_RESERVAS
-        assert hasattr(Feirante, "LIMITE_RESERVAS"), "Constante LIMITE_RESERVAS ausente em Feirante."
-        assert Feirante.LIMITE_RESERVAS == 2, "LIMITE_RESERVAS deve ser 2."
-        checks_passed += 1
 
-        # 5. Validação de documento no model Feirante (disparando erro)
-        f = Feirante(999, "Teste", "12345678901", "11999999999")
-        try:
-            f.alterar_documento("123")
-            assert False, "Deveria ter disparado ValueError ao passar documento com 3 dígitos."
-        except ValueError:
-            pass # Sucesso, a regra de negócio funcionou
-        checks_passed += 1
+for caminho in (
+    "app/__init__.py",
+    "app/data/__init__.py",
+    "app/models/__init__.py",
+    "app/controllers/__init__.py",
+    "app/routes/__init__.py",
+    "app/data/feirante_mock.py",
+    "app/data/barraca_mock.py",
+    "app/data/reserva_mock.py",
+    "app/models/feirante.py",
+    "app/models/barraca.py",
+    "app/models/reserva.py",
+    "app/controllers/barraca_controller.py",
+    "app/controllers/feirante_controller.py",
+    "app/controllers/reserva_controller.py",
+    "app/routes/barraca_routes.py",
+    "app/routes/feirante_routes.py",
+    "app/routes/reserva_routes.py",
+    "app/routes/relatorio_routes.py",
+    "main.py",
+):
+    verificar((ROOT / caminho).is_file(), f"Arquivo obrigatório ausente: {caminho}")
 
-        # 6. Instancia Barraca e verifica TAXA_BASE
-        b = Barraca(999, "B99", 10.0)
-        assert b.calcular_taxa_diaria() == 50.0, "Taxa diária de Barraca base incorreta."
-        checks_passed += 1
+verificar(len(FEIRANTES) >= 5, "O mock deve conter pelo menos 5 feirantes.")
+verificar(len(BARRACAS) >= 5, "O mock deve conter pelo menos 5 barracas.")
+verificar(len(RESERVAS) >= 5, "O mock deve conter pelo menos 5 reservas.")
+verificar(
+    all(
+        not nomes_de_classes_e_imports(caminho)
+        for caminho in (ROOT / "app" / "data").glob("*_mock.py")
+    ),
+    "Os mocks devem conter apenas dados estáticos.",
+)
 
-        # 7. Instancia BarracaAlimentacao e verifica TAXA_BASE
-        ba = BarracaAlimentacao(998, "BA99", 15.0)
-        assert ba.calcular_taxa_diaria() == 80.0, "Taxa diária de BarracaAlimentacao incorreta."
-        checks_passed += 1
+modelos = tuple((ROOT / "app" / "models").glob("*.py"))
+codigo_modelos = "\n".join(caminho.read_text(encoding="utf-8") for caminho in modelos)
+verificar("fastapi" not in codigo_modelos.lower(), "Modelos não podem importar FastAPI.")
+verificar(
+    "isinstance(" not in codigo_modelos and "type(" not in codigo_modelos,
+    "Modelos não devem usar verificações de tipo.",
+)
 
-        # 8. Instancia BarracaGourmet e verifica TAXA_BASE
-        bg = BarracaGourmet(997, "BG99", 20.0)
-        assert bg.calcular_taxa_diaria() == 120.0, "Taxa diária de BarracaGourmet incorreta."
-        checks_passed += 1
+for controller in (
+    ROOT / "app" / "controllers" / "barraca_controller.py",
+    ROOT / "app" / "controllers" / "feirante_controller.py",
+    ROOT / "app" / "controllers" / "reserva_controller.py",
+):
+    codigo = controller.read_text(encoding="utf-8")
+    arvore = ast.parse(codigo)
+    verificar(
+        any(
+            isinstance(no, ast.FunctionDef) and no.name == "_para_dicionario"
+            for no in ast.walk(arvore)
+        ),
+        f"{controller.name} deve definir _para_dicionario().",
+    )
+    verificar("fastapi" not in codigo.lower(), f"{controller.name} não deve usar HTTP.")
 
-        # 9. Verifica se a carga mock no controller retorna dados
-        from app.controllers.feirante_controller import listar_feirantes
-        assert len(listar_feirantes()) >= 5, "O mock de feirantes deve ter pelo menos 5 registros."
-        checks_passed += 1
+feirante = Feirante(99, "Teste", "12345678901", "11999999999")
+verificar(feirante.mostrar_documento() == "12345678901", "Documento válido não carregou.")
+verificar(
+    esperar_value_error(lambda: feirante.alterar_documento("123")),
+    "Documento inválido deveria lançar ValueError.",
+)
+verificar(
+    esperar_value_error(lambda: Barraca(99, "X", 0)),
+    "Metragem zero deveria lançar ValueError.",
+)
+verificar(
+    esperar_value_error(lambda: Barraca(99, "X", float("nan"))),
+    "Metragem não finita deveria lançar ValueError.",
+)
 
-        # 10. Teste de conflito de Reserva (limite de 2 ou data)
-        from app.controllers.reserva_controller import registrar_reserva
-        try:
-            # Tenta registrar uma reserva com a mesma barraca na mesma data já existente no mock
-            # No mock temos a barraca 1 reservada em 2026-10-15 pelo feirante 1.
-            # Vamos tentar reservar a barraca 1 novamente no mesmo dia para o feirante 2
-            registrar_reserva(1, 2, "2026-10-15")
-            assert False, "Deveria ter disparado ValueError ao reservar barraca já reservada na mesma data."
-        except ValueError as e:
-            pass # Sucesso, a regra de negócio funcionou
-        checks_passed += 1
+barracas = carregar_barracas()
+verificar(
+    [b.calcular_taxa_diaria() for b in barracas[:1]]
+    + [b.calcular_taxa_diaria() for b in barracas[2:3]]
+    + [b.calcular_taxa_diaria() for b in barracas[4:5]]
+    == [50.0, 80.0, 120.0],
+    "Taxas polimórficas devem ser 50, 80 e 120.",
+)
+verificar(issubclass(BarracaGourmet, BarracaAlimentacao), "Hierarquia Gourmet inválida.")
+verificar(issubclass(BarracaAlimentacao, Barraca), "Hierarquia Alimentação inválida.")
+verificar(
+    esperar_value_error(lambda: Reserva(99, feirante, barracas[0], "2026-02-30")),
+    "Data inválida deveria lançar ValueError.",
+)
+verificar(
+    len(carregar_reservas(carregar_feirantes(), barracas)) == len(RESERVAS),
+    "Reservas do mock não foram carregadas.",
+)
 
-        # 11. Verifica registro de rotas no arquivo main.py
-        with open('main.py', 'r', encoding='utf-8') as f_main:
-            content = f_main.read()
-            assert "app.include_router(" in content, "main.py não está incluindo as rotas (app.include_router não encontrado)."
-        checks_passed += 1
+registro = reserva_controller.registrar_reserva(6, 4, "2026-10-15")
+verificar(
+    registro is not None and registro["feirante_id"] == 4,
+    "Não foi possível registrar uma reserva válida.",
+)
+verificar(
+    esperar_value_error(
+        lambda: reserva_controller.registrar_reserva(1, 5, "2026-10-15")
+    ),
+    "Reserva duplicada deveria gerar ValueError.",
+)
+verificar(
+    esperar_value_error(
+        lambda: reserva_controller.registrar_reserva(2, 4, "2026-10-22")
+    ),
+    "Limite de reservas do feirante deveria ser aplicado.",
+)
+verificar(
+    reserva_controller.registrar_reserva(999, 4, "2026-11-01") is None,
+    "ID inexistente deveria retornar None.",
+)
 
-        # 12. Confirmação dos pacotes exigidos no requirements.txt
-        with open('requirements.txt', 'r', encoding='utf-8') as f_req:
-            content = f_req.read()
-            assert "fastapi" in content.lower(), "fastapi não encontrado em requirements.txt."
-            assert "uvicorn" in content.lower(), "uvicorn não encontrado em requirements.txt."
-        checks_passed += 1
+especificacao_api = app.openapi()
+rotas = {
+    (metodo.upper(), caminho)
+    for caminho, operacoes in especificacao_api["paths"].items()
+    for metodo in operacoes
+}
+for metodo, caminho in (
+    ("GET", "/api/barracas"),
+    ("GET", "/api/barracas/disponiveis"),
+    ("GET", "/api/barracas/{id}"),
+    ("GET", "/api/feirantes"),
+    ("GET", "/api/feirantes/{id}"),
+    ("POST", "/api/reservas"),
+    ("GET", "/api/reservas"),
+    ("GET", "/api/feirantes/{id}/reservas"),
+    ("GET", "/api/relatorio/faturamento"),
+):
+    verificar((metodo, caminho) in rotas, f"Rota ausente: {metodo} {caminho}")
 
-    except Exception as e:
-        print(f"\n[ERRO] A checagem {checks_passed + 1} falhou!")
-        print(f"Detalhes: {e}")
-        sys.exit(1)
+verificar(
+    "201" in especificacao_api["paths"]["/api/reservas"]["post"]["responses"],
+    "POST /api/reservas deve responder 201.",
+)
+verificar(
+    "uvicorn main:app --reload" in (ROOT / "README.md").read_text(encoding="utf-8"),
+    "README deve documentar o comando de execução.",
+)
 
-    print(f"\n[SUCESSO] Todas as {checks_passed} checagens passaram.")
-    sys.exit(0)
-
-if __name__ == "__main__":
-    run_checks()
+print(f"OK: {checks} verificações passaram.")

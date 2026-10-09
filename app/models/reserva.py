@@ -27,25 +27,24 @@ class Reserva:
 
     # Alteração e validação
     def alterar_feirante(self, feirante):
-        # Feirante é obrigatório
         if feirante is None:
             raise ValueError("Feirante inválido.")
         self._feirante = feirante
 
     def alterar_barraca(self, barraca):
-        # Barraca é obrigatória
         if barraca is None:
             raise ValueError("Barraca inválida.")
         self._barraca = barraca
 
     def alterar_data(self, data):
-        # Rejeita vazio, tipo errado e data fora do formato AAAA-MM-DD
         try:
             data_limpa = data.strip()
             if not data_limpa:
                 raise ValueError
-            datetime.strptime(data_limpa, self.FORMATO_DATA)
-        except (ValueError, AttributeError):
+            data_validada = datetime.strptime(data_limpa, self.FORMATO_DATA)
+        except (ValueError, AttributeError) as erro:
+            raise ValueError("Data inválida. Use o formato AAAA-MM-DD.") from erro
+        if data_validada.strftime(self.FORMATO_DATA) != data_limpa:
             raise ValueError("Data inválida. Use o formato AAAA-MM-DD.")
         self._data = data_limpa
 
@@ -57,17 +56,20 @@ class Reserva:
 
 
 def carregar_reservas(feirantes, barracas):
-    # Indexa feirantes e barracas pelo id para ligar cada reserva aos objetos
     feirantes_por_id = {f.mostrar_id(): f for f in feirantes}
     barracas_por_id = {b.mostrar_id(): b for b in barracas}
-
-    # Cria um objeto Reserva para cada item do mock
-    return [
-        Reserva(
-            r["id"],
-            feirantes_por_id.get(r["feirante_id"]),
-            barracas_por_id.get(r["barraca_id"]),
-            r["data"],
+    reservas = []
+    for registro in RESERVAS:
+        feirante = feirantes_por_id.get(registro["feirante_id"])
+        barraca = barracas_por_id.get(registro["barraca_id"])
+        if feirante is None or barraca is None:
+            raise ValueError("Mock de reserva referencia recurso inexistente.")
+        reservas.append(
+            Reserva(
+                registro["id"],
+                feirante,
+                barraca,
+                registro["data"],
+            )
         )
-        for r in RESERVAS
-    ]
+    return reservas

@@ -3,6 +3,11 @@ from app.models.reserva import Reserva, carregar_reservas
 from app.controllers.barraca_controller import barracas
 from app.controllers.feirante_controller import feirantes
 
+
+class ConflitoReservaError(ValueError):
+    """Indica conflito com as regras de capacidade de reservas."""
+
+
 # Estado em memória do módulo, carregado do mock
 reservas = carregar_reservas(feirantes, barracas)
 
@@ -45,25 +50,20 @@ def registrar_reserva(barraca_id, feirante_id, data):
     if barraca is None or feirante is None:
         return None
 
-    # O model valida a data e dispara ValueError se inválida
     nova = Reserva(_proximo_id(), feirante, barraca, data)
 
-    # Regra: barraca não pode ser reservada duas vezes na mesma data
     if any(
         r.mostrar_barraca().mostrar_id() == barraca_id
         and r.mostrar_data() == nova.mostrar_data()
         for r in reservas
     ):
-        raise ValueError("Barraca já reservada nesta data.")
+        raise ConflitoReservaError("Barraca já reservada nesta data.")
 
-    # Busca a constante da própria classe, regra de negócio no modelo!
-    total_feirante = len([r for r in reservas if r.mostrar_feirante().mostrar_id() == feirante_id])
-    # Regra: feirante não pode passar do limite de reservas
-    total_feirante = len(
-        [r for r in reservas if r.mostrar_feirante().mostrar_id() == feirante_id]
+    total_feirante = sum(
+        r.mostrar_feirante().mostrar_id() == feirante_id for r in reservas
     )
     if total_feirante >= Feirante.LIMITE_RESERVAS:
-        raise ValueError(
+        raise ConflitoReservaError(
             f"Feirante atingiu o limite de {Feirante.LIMITE_RESERVAS} reservas."
         )
 
