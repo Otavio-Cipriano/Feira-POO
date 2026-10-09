@@ -135,6 +135,7 @@ classDiagram
         +alterar_documento()
         +mostrar_telefone()
         +alterar_telefone()
+        +mostra_id()
     }
 
     class Barraca {
@@ -142,6 +143,11 @@ classDiagram
         -_codigo
         -_metragem
         +calcular_taxa_diaria()
+        +mostrar_id()
+        +mostrar_codigo()
+        +alterar_codigo()
+        +mostrar_metragem()
+        +alterar metragem()
     }
 
     class BarracaAlimentacao {
@@ -161,7 +167,13 @@ classDiagram
         -_feirante
         -_barraca
         -_data
+        +mostrar_data()
         +alterar_data()
+        +mostrar_id()
+        +mostrar_feirante()
+        +alterar_feirante()
+        +mostrar_barraca()
+        +alterar_barraca()
     }
 
     Feirante "1" --> "0..*" Reserva
