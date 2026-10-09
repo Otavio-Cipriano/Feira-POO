@@ -10,7 +10,6 @@ class Barraca:
         self.alterar_codigo(codigo)
         self.alterar_metragem(metragem)
 
-    # --- Leitura ---
     def mostrar_id(self):
         return self._id
 
@@ -20,7 +19,7 @@ class Barraca:
     def mostrar_metragem(self):
         return self._metragem
 
-    # --- Alteração ---
+
     def alterar_codigo(self, codigo):
         try:
             codigo_limpo = codigo.strip()
@@ -39,7 +38,7 @@ class Barraca:
             raise ValueError("A metragem deve ser maior que zero.")
         self._metragem = metragem_validada
 
-    # --- Negócio ---
+
     def calcular_taxa_diaria(self):
         return Barraca.TAXA_BASE
 
@@ -62,7 +61,7 @@ class BarracaGourmet(BarracaAlimentacao):
     def calcular_taxa_diaria(self):
         return super().calcular_taxa_diaria() + self.TAXA_ADICIONAL_INFRAESTRUTURA
 
-# Mapeamento para evitar o uso de 'if'
+
 BARRACAS_TIPOS = {
     "barraca": Barraca,
     "alimentacao": BarracaAlimentacao,

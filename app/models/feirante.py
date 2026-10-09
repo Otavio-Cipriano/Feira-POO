@@ -10,7 +10,7 @@ class Feirante:
         self.alterar_documento(documento)
         self.alterar_telefone(telefone)
 
-    # --- Leitura ---
+
     def mostrar_id(self):
         return self._id
 
@@ -23,7 +23,7 @@ class Feirante:
     def mostrar_telefone(self):
         return self._telefone
 
-    # --- Alteração e Validação ---
+    
     def alterar_nome(self, novo_nome):
         try:
             nome = novo_nome.strip()

@@ -12,7 +12,7 @@ class Reserva:
         self.alterar_barraca(barraca)
         self.alterar_data(data)
 
-    # Leitura
+    
     def mostrar_id(self):
         return self._id
 
@@ -25,7 +25,7 @@ class Reserva:
     def mostrar_data(self):
         return self._data
 
-    # Alteração e validação
+    
     def alterar_feirante(self, feirante):
         if feirante is None:
             raise ValueError("Feirante inválido.")
