@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
 
 from app.controllers.barraca_controller import (
     listar_barracas,
@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 
-@router.get("/")
+@router.get("")
 def obter_barracas():
     return listar_barracas()
 
@@ -24,7 +24,7 @@ def obter_barracas_disponiveis():
 
 
 @router.get("/{id}")
-def obter_barraca(id: int):
+def obter_barraca(id: int = Path(gt=0)):
     barraca = buscar_barraca_por_id(id)
 
     if barraca is None:

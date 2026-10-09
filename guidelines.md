@@ -152,15 +152,14 @@ Responsável por:
 
 ## 5. Checklist de entrega
 
-- [ ] Estrutura de pastas criada corretamente
-- [ ] Mocks com dados estáticos e sem lógica
-- [ ] Modelos com encapsulamento e validações
-- [ ] Controllers sem HTTP e sem tratamento de resposta
-- [ ] Rotas com FastAPI e status HTTP adequados
-- [ ] Script `verificar.py` com validações automatizadas
-- [ ] README com instruções de execução e documentação de rotas
+- [x] Estrutura de pastas criada corretamente
+- [x] Mocks com dados estáticos e sem lógica
+- [x] Modelos com encapsulamento e validações
+- [x] Controllers sem HTTP e sem tratamento de resposta
+- [x] Rotas com FastAPI e status HTTP adequados
+- [x] Script `verificar.py` com validações automatizadas
+- [x] README com instruções de execução e documentação de rotas
 
 ## 6. Observações finais
 
 Este projeto foi concebido para praticar os conceitos fundamentais de POO, incluindo encapsulamento, herança, polimorfismo, regras de negócio e separação de responsabilidades. A aderência estrita a essas regras é parte essencial da avaliação.
-

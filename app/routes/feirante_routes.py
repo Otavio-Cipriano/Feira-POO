@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
 
 from app.controllers.feirante_controller import (
     listar_feirantes,
@@ -13,13 +13,13 @@ router = APIRouter(
 )
 
 
-@router.get("/")
+@router.get("")
 def obter_feirantes():
     return listar_feirantes()
 
 
 @router.get("/{id}")
-def obter_feirante(id: int):
+def obter_feirante(id: int = Path(gt=0)):
     feirante = buscar_feirante_por_id(id)
 
     if feirante is None:
@@ -32,7 +32,7 @@ def obter_feirante(id: int):
 
 
 @router.get("/{id}/reservas")
-def obter_historico_reservas(id: int):
+def obter_historico_reservas(id: int = Path(gt=0)):
     historico = historico_reservas(id)
 
     if historico is None:
