@@ -200,4 +200,4 @@ classDiagram
 A implementação segue a regra de não usar `FastAPI` na camada de modelos, utilizando `ValueError` para validar regras de negócio e delegando o tratamento de status HTTP para as rotas.
 
 ## Verficar.py Saida
-![alt text](image.png)
+![alt text](/docs/image.png)
