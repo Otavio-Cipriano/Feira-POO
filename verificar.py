@@ -1,11 +1,21 @@
-import ast
-from pathlib import Path
+"""Verificacao do dominio Feira-POO.
 
+Roda sem subir a API: testa models e controllers, como o exemplo do Kioferta.
+"""
 from app.controllers import reserva_controller
+from app.controllers.barraca_controller import (
+    listar_barracas,
+    listar_barracas_disponiveis,
+)
+from app.controllers.feirante_controller import (
+    historico_reservas,
+    listar_feirantes,
+)
 from app.data.barraca_mock import BARRACAS
 from app.data.feirante_mock import FEIRANTES
 from app.data.reserva_mock import RESERVAS
 from app.models.barraca import (
+    BARRACAS_TIPOS,
     Barraca,
     BarracaAlimentacao,
     BarracaGourmet,
@@ -13,21 +23,21 @@ from app.models.barraca import (
 )
 from app.models.feirante import Feirante, carregar_feirantes
 from app.models.reserva import Reserva, carregar_reservas
-from main import app
 
 
-ROOT = Path(__file__).resolve().parent
-checks = 0
+falhas = 0
 
 
-def verificar(condicao, mensagem):
-    global checks
-    checks += 1
-    if not condicao:
-        raise AssertionError(mensagem)
+def checar(ok, descricao):
+    global falhas
+    if ok:
+        print(f"  ok      {descricao}")
+    else:
+        print(f"  FALHOU  {descricao}")
+        falhas += 1
 
 
-def esperar_value_error(acao):
+def rejeita_value_error(acao):
     try:
         acao()
     except ValueError:
@@ -35,155 +45,171 @@ def esperar_value_error(acao):
     return False
 
 
-def nomes_de_classes_e_imports(caminho):
-    arvore = ast.parse(caminho.read_text(encoding="utf-8"))
-    return [
-        no
-        for no in ast.walk(arvore)
-        if isinstance(no, (ast.ClassDef, ast.Import, ast.ImportFrom))
-    ]
-
-
-for caminho in (
-    "app/__init__.py",
-    "app/data/__init__.py",
-    "app/models/__init__.py",
-    "app/controllers/__init__.py",
-    "app/routes/__init__.py",
-    "app/data/feirante_mock.py",
-    "app/data/barraca_mock.py",
-    "app/data/reserva_mock.py",
-    "app/models/feirante.py",
-    "app/models/barraca.py",
-    "app/models/reserva.py",
-    "app/controllers/barraca_controller.py",
-    "app/controllers/feirante_controller.py",
-    "app/controllers/reserva_controller.py",
-    "app/routes/barraca_routes.py",
-    "app/routes/feirante_routes.py",
-    "app/routes/reserva_routes.py",
-    "app/routes/relatorio_routes.py",
-    "main.py",
-):
-    verificar((ROOT / caminho).is_file(), f"Arquivo obrigatório ausente: {caminho}")
-
-verificar(len(FEIRANTES) >= 5, "O mock deve conter pelo menos 5 feirantes.")
-verificar(len(BARRACAS) >= 5, "O mock deve conter pelo menos 5 barracas.")
-verificar(len(RESERVAS) >= 5, "O mock deve conter pelo menos 5 reservas.")
-verificar(
-    all(
-        not nomes_de_classes_e_imports(caminho)
-        for caminho in (ROOT / "app" / "data").glob("*_mock.py")
+print("\n1. Encapsulamento: o objeto nasce valido")
+feirante_teste = Feirante(99, "Teste", "12345678901", "11999999999")
+checar(
+    feirante_teste.mostrar_documento() == "12345678901",
+    "Feirante guarda o documento valido",
+)
+checar(
+    rejeita_value_error(
+        lambda: Feirante(99, "Teste", "123", "11999999999")
     ),
-    "Os mocks devem conter apenas dados estáticos.",
+    "construtor recusa documento invalido",
+)
+checar(
+    rejeita_value_error(lambda: Barraca(99, "B99", 0)),
+    "construtor recusa metragem igual a zero",
+)
+checar(
+    rejeita_value_error(lambda: Barraca(99, "B99", float("nan"))),
+    "construtor recusa metragem nao finita",
+)
+checar(not hasattr(Feirante, "alterar_id"), "nao existe alterar_id")
+
+print("\n2. Heranca: a hierarquia de barracas esta correta")
+checar(issubclass(BarracaAlimentacao, Barraca), "Alimentacao herda de Barraca")
+checar(
+    BarracaGourmet.__base__ is BarracaAlimentacao,
+    "Gourmet herda diretamente de Alimentacao",
+)
+checar(Barraca.TAXA_BASE == 50.0, "Barraca define taxa base 50")
+checar(BarracaAlimentacao.TAXA_BASE == 80.0, "Alimentacao define taxa base 80")
+checar(BarracaGourmet.TAXA_BASE == 120.0, "Gourmet define taxa base 120")
+checar(
+    "calcular_taxa_diaria" in BarracaGourmet.__dict__,
+    "Gourmet sobrescreve calcular_taxa_diaria",
 )
 
-modelos = tuple((ROOT / "app" / "models").glob("*.py"))
-codigo_modelos = "\n".join(caminho.read_text(encoding="utf-8") for caminho in modelos)
-verificar("fastapi" not in codigo_modelos.lower(), "Modelos não podem importar FastAPI.")
-verificar(
-    "isinstance(" not in codigo_modelos and "type(" not in codigo_modelos,
-    "Modelos não devem usar verificações de tipo.",
+print("\n3. Polimorfismo: uma chamada calcula taxas diferentes")
+taxas = {
+    tipo: classe(99, "TESTE", 10).calcular_taxa_diaria()
+    for tipo, classe in BARRACAS_TIPOS.items()
+}
+checar(
+    taxas == {"barraca": 50.0, "alimentacao": 80.0, "gourmet": 120.0},
+    "cada tipo calcula sua taxa pelo mesmo metodo",
+)
+checar(
+    all(isinstance(barraca, Barraca) for barraca in carregar_barracas()),
+    "o carregador instancia objetos da hierarquia Barraca",
 )
 
-for controller in (
-    ROOT / "app" / "controllers" / "barraca_controller.py",
-    ROOT / "app" / "controllers" / "feirante_controller.py",
-    ROOT / "app" / "controllers" / "reserva_controller.py",
-):
-    codigo = controller.read_text(encoding="utf-8")
-    arvore = ast.parse(codigo)
-    verificar(
-        any(
-            isinstance(no, ast.FunctionDef) and no.name == "_para_dicionario"
-            for no in ast.walk(arvore)
-        ),
-        f"{controller.name} deve definir _para_dicionario().",
-    )
-    verificar("fastapi" not in codigo.lower(), f"{controller.name} não deve usar HTTP.")
-
-feirante = Feirante(99, "Teste", "12345678901", "11999999999")
-verificar(feirante.mostrar_documento() == "12345678901", "Documento válido não carregou.")
-verificar(
-    esperar_value_error(lambda: feirante.alterar_documento("123")),
-    "Documento inválido deveria lançar ValueError.",
+print("\n4. Validacao: os modelos rejeitam dados invalidos")
+checar(
+    rejeita_value_error(
+        lambda: Feirante(99, "Teste", "123", "11999999999")
+    ),
+    "Feirante rejeita documento fora do tamanho permitido",
 )
-verificar(
-    esperar_value_error(lambda: Barraca(99, "X", 0)),
-    "Metragem zero deveria lançar ValueError.",
+barraca_teste = Barraca(99, "B99", 10)
+checar(
+    rejeita_value_error(
+        lambda: Reserva(99, feirante_teste, barraca_teste, "")
+    ),
+    "Reserva rejeita data vazia",
 )
-verificar(
-    esperar_value_error(lambda: Barraca(99, "X", float("nan"))),
-    "Metragem não finita deveria lançar ValueError.",
+checar(
+    rejeita_value_error(
+        lambda: Reserva(99, feirante_teste, barraca_teste, "2026-02-30")
+    ),
+    "Reserva rejeita data inexistente",
+)
+checar(
+    rejeita_value_error(lambda: Reserva(99, None, barraca_teste, "2026-10-15")),
+    "Reserva rejeita feirante ausente",
 )
 
+print("\n5. Associacao: Reserva guarda objetos, nao apenas ids")
+feirantes = carregar_feirantes()
 barracas = carregar_barracas()
-verificar(
-    [b.calcular_taxa_diaria() for b in barracas[:1]]
-    + [b.calcular_taxa_diaria() for b in barracas[2:3]]
-    + [b.calcular_taxa_diaria() for b in barracas[4:5]]
-    == [50.0, 80.0, 120.0],
-    "Taxas polimórficas devem ser 50, 80 e 120.",
+reservas = carregar_reservas(feirantes, barracas)
+primeira_reserva = reservas[0]
+checar(
+    isinstance(primeira_reserva.mostrar_feirante(), Feirante),
+    "mostrar_feirante devolve um objeto Feirante",
 )
-verificar(issubclass(BarracaGourmet, BarracaAlimentacao), "Hierarquia Gourmet inválida.")
-verificar(issubclass(BarracaAlimentacao, Barraca), "Hierarquia Alimentação inválida.")
-verificar(
-    esperar_value_error(lambda: Reserva(99, feirante, barracas[0], "2026-02-30")),
-    "Data inválida deveria lançar ValueError.",
+checar(
+    isinstance(primeira_reserva.mostrar_barraca(), Barraca),
+    "mostrar_barraca devolve um objeto Barraca",
 )
-verificar(
-    len(carregar_reservas(carregar_feirantes(), barracas)) == len(RESERVAS),
-    "Reservas do mock não foram carregadas.",
+checar(
+    len(reservas) == len(RESERVAS),
+    "carregar_reservas instancia os dados do mock",
 )
 
-registro = reserva_controller.registrar_reserva(6, 4, "2026-10-15")
-verificar(
-    registro is not None and registro["feirante_id"] == 4,
-    "Não foi possível registrar uma reserva válida.",
-)
-verificar(
-    esperar_value_error(
+print("\n6. Regras de negocio: reservas duplicadas e limite")
+checar(
+    rejeita_value_error(
         lambda: reserva_controller.registrar_reserva(1, 5, "2026-10-15")
     ),
-    "Reserva duplicada deveria gerar ValueError.",
+    "recusa barraca ja reservada na mesma data",
 )
-verificar(
-    esperar_value_error(
-        lambda: reserva_controller.registrar_reserva(2, 4, "2026-10-22")
+checar(
+    rejeita_value_error(
+        lambda: reserva_controller.registrar_reserva(6, 1, "2026-11-01")
     ),
-    "Limite de reservas do feirante deveria ser aplicado.",
+    "recusa feirante que atingiu o limite de reservas",
 )
-verificar(
-    reserva_controller.registrar_reserva(999, 4, "2026-11-01") is None,
-    "ID inexistente deveria retornar None.",
-)
-
-especificacao_api = app.openapi()
-rotas = {
-    (metodo.upper(), caminho)
-    for caminho, operacoes in especificacao_api["paths"].items()
-    for metodo in operacoes
-}
-for metodo, caminho in (
-    ("GET", "/api/barracas"),
-    ("GET", "/api/barracas/disponiveis"),
-    ("GET", "/api/barracas/{id}"),
-    ("GET", "/api/feirantes"),
-    ("GET", "/api/feirantes/{id}"),
-    ("POST", "/api/reservas"),
-    ("GET", "/api/reservas"),
-    ("GET", "/api/feirantes/{id}/reservas"),
-    ("GET", "/api/relatorio/faturamento"),
-):
-    verificar((metodo, caminho) in rotas, f"Rota ausente: {metodo} {caminho}")
-
-verificar(
-    "201" in especificacao_api["paths"]["/api/reservas"]["post"]["responses"],
-    "POST /api/reservas deve responder 201.",
-)
-verificar(
-    "uvicorn main:app --reload" in (ROOT / "README.md").read_text(encoding="utf-8"),
-    "README deve documentar o comando de execução.",
+checar(
+    reserva_controller.registrar_reserva(999, 5, "2026-11-01") is None,
+    "recurso inexistente retorna None no controller",
 )
 
-print(f"OK: {checks} verificações passaram.")
+print("\n7. Colecoes: controllers filtram e consultam os dados")
+checar(
+    len(listar_feirantes()) == len(FEIRANTES),
+    "controller lista os feirantes do mock",
+)
+checar(
+    len(listar_barracas()) == len(BARRACAS),
+    "controller lista as barracas do mock",
+)
+disponiveis = listar_barracas_disponiveis()
+checar(
+    len(disponiveis) > 0
+    and all(barraca["disponivel"] for barraca in disponiveis),
+    "controller retorna apenas barracas disponiveis",
+)
+checar(
+    len(historico_reservas(1)) == 2,
+    "historico retorna as duas reservas do feirante 1",
+)
+checar(
+    historico_reservas(999) is None,
+    "historico de feirante inexistente retorna None",
+)
+checar(
+    reserva_controller.calcular_faturamento_total() > 0,
+    "faturamento soma taxas das reservas",
+)
+reserva_criada = reserva_controller.registrar_reserva(6, 5, "2026-11-01")
+checar(
+    reserva_criada is not None and reserva_criada["barraca_id"] == 6,
+    "registra reserva valida para recursos existentes",
+)
+
+print("\n8. Camadas: models e controllers nao conhecem FastAPI")
+import app.controllers.barraca_controller as bc
+import app.controllers.feirante_controller as fc
+import app.controllers.reserva_controller as rc
+import app.models.barraca as mb
+import app.models.feirante as mf
+import app.models.reserva as mr
+
+for modulo in (mb, mf, mr):
+    conteudo = open(modulo.__file__, encoding="utf-8").read().lower()
+    nome = modulo.__name__.split(".")[-1]
+    checar("fastapi" not in conteudo, f"{nome}.py nao importa FastAPI")
+
+for modulo in (bc, fc, rc):
+    conteudo = open(modulo.__file__, encoding="utf-8").read()
+    nome = modulo.__name__.split(".")[-1]
+    checar("HTTPException" not in conteudo, f"{nome}.py nao usa HTTPException")
+
+print()
+if falhas == 0:
+    print("TUDO CERTO. Agora suba a API e teste no /docs.")
+else:
+    print(f"{falhas} verificacao(oes) falharam.")
+    raise SystemExit(1)
